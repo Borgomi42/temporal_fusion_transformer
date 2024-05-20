@@ -50,6 +50,7 @@ import numpy as np
 import pandas as pd
 import pyunpack
 import wget
+import datetime as dt
 
 
 # General functions for data downloading & aggregation.
@@ -101,11 +102,12 @@ def download_and_unzip(url, zip_path, csv_path, data_folder):
 def download_volatility(config):
   """Downloads volatility data from OMI website."""
 
-  url = 'https://realized.oxford-man.ox.ac.uk/images/oxfordmanrealizedvolatilityindices.zip'
+  # url = 'https://realized.oxford-man.ox.ac.uk/images/oxfordmanrealizedvolatilityindices.zip'
+  url = 'https://github.com/jonathancornelissen/highfrequency/blob/master/data-raw/OxfordManRealizedVolatilityIndices.zip'
 
   data_folder = config.data_folder
   csv_path = os.path.join(data_folder, 'oxfordmanrealizedvolatilityindices.csv')
-  zip_path = os.path.join(data_folder, 'oxfordmanrealizedvolatilityindices.zip')
+  zip_path = os.path.join(data_folder, 'OxfordManRealizedVolatilityIndices.zip')
 
   download_and_unzip(url, zip_path, csv_path, data_folder)
 
@@ -118,10 +120,10 @@ def download_volatility(config):
         ]  # ignore timezones, we don't need them
   dates = pd.to_datetime(idx)
   df['date'] = dates
-  df['days_from_start'] = (dates - pd.datetime(2000, 1, 3)).days
+  df['days_from_start'] = (dates - dt.datetime(2000, 1, 3)).days
   df['day_of_week'] = dates.dayofweek
   df['day_of_month'] = dates.day
-  df['week_of_year'] = dates.weekofyear
+  df['week_of_year'] = [k for k in dates.isocalendar().week]
   df['month'] = dates.month
   df['year'] = dates.year
   df['categorical_id'] = df['Symbol'].copy()
@@ -174,7 +176,7 @@ def download_volatility(config):
     sliced = grp[1].copy()
     sliced.sort_values('days_from_start', inplace=True)
     # Impute log volatility values
-    sliced['log_vol'].fillna(method='ffill', inplace=True)
+    sliced['log_vol'].ffill(inplace=True)
     sliced.dropna()
     output_df_list.append(sliced)
 
@@ -214,8 +216,8 @@ def download_electricity(config):
     print('Processing {}'.format(label))
     srs = output[label]
 
-    start_date = min(srs.fillna(method='ffill').dropna().index)
-    end_date = max(srs.fillna(method='bfill').dropna().index)
+    start_date = min(srs.ffill().dropna().index)
+    end_date = max(srs.bfill().dropna().index)
 
     active_range = (srs.index >= start_date) & (srs.index <= end_date)
     srs = srs[active_range].fillna(0.)
@@ -384,7 +386,7 @@ def download_traffic(config):
         + sliced['time_on_day'].apply(lambda x: '_' + format_index_string(x))
     sliced = sliced.set_index(key).sort_index()
 
-    sliced['values'] = sliced['values'].fillna(method='ffill')
+    sliced['values'] = sliced['values'].ffill()
     sliced['prev_values'] = sliced['values'].shift(1)
     sliced['next_values'] = sliced['values'].shift(-1)
 
@@ -442,8 +444,8 @@ def process_favorita(config):
   print('Unzipping complete, commencing data processing...')
 
   # Extract only a subset of data to save/process for efficiency
-  start_date = pd.datetime(2015, 1, 1)
-  end_date = pd.datetime(2016, 6, 1)
+  start_date = dt.datetime(2015, 1, 1)
+  end_date = dt.datetime(2016, 6, 1)
 
   print('Regenerating data...')
 
@@ -494,7 +496,7 @@ def process_favorita(config):
     sub_df = sub_df.resample('1d').last()
     sub_df['date'] = sub_df.index
     sub_df[['store_nbr', 'item_nbr', 'onpromotion']] \
-        = sub_df[['store_nbr', 'item_nbr', 'onpromotion']].fillna(method='ffill')
+        = sub_df[['store_nbr', 'item_nbr', 'onpromotion']].ffill()
     sub_df['open'] = sub_df['open'].fillna(
         0)  # flag where sales data is unknown
     sub_df['log_sales'] = np.log(sub_df['unit_sales'])
@@ -584,7 +586,7 @@ def main(expt_name, force_download, output_folder):
     sys.exit(0)
   else:
     print('Resetting data folder...')
-    recreate_folder(expt_config.data_folder)
+    # recreate_folder(expt_config.data_folder)
 
   # Default download functions
   download_functions = {
