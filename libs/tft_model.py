@@ -499,10 +499,10 @@ class TemporalFusionTransformer(object):
       if i in self._static_input_loc:
         raise ValueError('Observation cannot be static!')
 
-    if all_inputs.get_shape().as_list()[-1] != self.input_size:
+    if list(all_inputs.shape)[-1] != self.input_size:
       raise ValueError(
           'Illegal number of inputs! Inputs observed={}, expected={}'.format(
-              all_inputs.get_shape().as_list()[-1], self.input_size))
+              list(all_inputs.shape)[-1], self.input_size))
 
     num_categorical_variables = len(self.category_counts)
     num_regular_variables = self.input_size - num_categorical_variables
@@ -823,7 +823,7 @@ class TemporalFusionTransformer(object):
       """
 
       # Add temporal features
-      _, num_static, _ = embedding.get_shape().as_list()
+      _, num_static, _ = list(embedding.shape)
 
       flatten = tf.keras.layers.Flatten()(embedding)
 
@@ -891,7 +891,7 @@ class TemporalFusionTransformer(object):
       """
 
       # Add temporal features
-      _, time_steps, embedding_dim, num_inputs = embedding.get_shape().as_list()
+      _, time_steps, embedding_dim, num_inputs = list(embedding.shape)
 
       flatten = K.reshape(embedding,
                           [-1, time_steps, embedding_dim * num_inputs])
